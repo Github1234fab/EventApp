@@ -120,39 +120,47 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        {user ? (
-          // ✅ Utilisateur connecté
-          <>
-            <Stack.Screen
-              name="EventsList"
-              component={EventsList}
-              options={{ title: "Événements" }}
-            />
-            <Stack.Screen
-              name="EventDetail"
-              component={EventDetail}
-              options={{ title: "Détail" }}
-            />
-          </>
-        ) : (
-          // 🚫 Pas connecté
-          <>
-                <Stack.Screen name="EventsList" component={EventsList} options={{ title: "Événements" }} />
-                <Stack.Screen name="EventDetail" component={EventDetail} options={{ title: "Détail" }} />
-            <Stack.Screen
-              name="Login"
-              component={Login}
-              options={{ title: "Connexion" }}
-            />
-            <Stack.Screen
-              name="Register"
-              component={Register}
-              options={{ title: "Créer un compte" }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
+     <Stack.Navigator>
+  {user ? (
+    // ✅ Utilisateur connecté : accès aux écrans privés
+    <>
+      <Stack.Screen
+        name="EventsList"
+        component={EventsList}
+        options={{ title: "Événements" }}
+      />
+      <Stack.Screen
+        name="EventDetail"
+        component={EventDetail}
+        options={{ title: "Détail" }}
+      />
+      <Stack.Screen
+        name="NewAd"
+        component={NewAd}
+        options={{ title: "Nouvelle annonce" }}
+      />
+      <Stack.Screen
+        name="MyAds"
+        component={MyAds}
+        options={{ title: "Mes annonces" }}
+      />
+    </>
+  ) : (
+    // 🚫 Pas connecté : uniquement Login / Register
+    <>
+      <Stack.Screen
+        name="Login"
+        component={Login}
+        options={{ title: "Connexion" }}
+      />
+      <Stack.Screen
+        name="Register"
+        component={Register}
+        options={{ title: "Créer un compte" }}
+      />
+    </>
+  )}
+</Stack.Navigator>
 
       <StatusBar style="auto" />
     </NavigationContainer>
