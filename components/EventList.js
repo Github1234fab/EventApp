@@ -1,4 +1,4 @@
-// components/Firebase-rendu.js
+// components/EventList.js
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, Button } from "react-native";
 import { Picker } from "@react-native-picker/picker";
@@ -7,7 +7,10 @@ import { collection, getDocs } from "firebase/firestore";
 import Card from "./Card";
 import dayjs from "dayjs";
 
-export default function EventsList({navigation}) {
+import { signOut } from "firebase/auth";
+import { auth } from "./Firebase";
+
+export default function EventsList({ navigation }) {
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
 
@@ -85,6 +88,16 @@ export default function EventsList({navigation}) {
 
   return (
     <View style={styles.container}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+        <Button title="Se déconnecter" onPress={() => signOut(auth)} />
+      </View>
+
+      {/* 🔹 Accès rapide : Nouvelle annonce / Mes annonces */}
+      <View style={{ paddingHorizontal: 16, gap: 8, paddingBottom: 8 }}>
+  <Button title="➕ Créer une annonce" onPress={() => navigation.navigate("NewAd")} />
+  <Button title="📁 Mes annonces" onPress={() => navigation.navigate("MyAds")} />
+</View>
+
       <Text style={styles.header}>🎭 Liste des évènements :</Text>
 
       {/* 🔹 Filtres */}
@@ -115,32 +128,18 @@ export default function EventsList({navigation}) {
         </Picker>
 
         {/* Bouton pour réinitialiser */}
-<Button
-  title="Réinitialiser les filtres"
-  onPress={() => {
-    setSelectedCategory("Toutes");
-    setSelectedLieu("Tous");
-    setSelectedDateFilter("Toutes");
-  }}
-/>
+        <Button
+          title="Réinitialiser les filtres"
+          onPress={() => {
+            setSelectedCategory("Toutes");
+            setSelectedLieu("Tous");
+            setSelectedDateFilter("Toutes");
+          }}
+        />
       </View>
 
       {/* 🔹 Liste des events */}
-      <FlatList
-  data={filteredEvents}
-  keyExtractor={(item) => item.id.toString()}
-  renderItem={({ item }) => (
-    <Card
-      titre={item.titre}
-      tarif={item.tarif}
-      image={item.image}
-      description={item.description}
-      lieu={item.lieu}
-      date={item.date}
-      event={item} navigation={navigation}// 👈 placé ici
-    />
-  )}
-/>
+      <FlatList data={filteredEvents} keyExtractor={(item) => item.id.toString()} renderItem={({ item }) => <Card titre={item.titre} tarif={item.tarif} image={item.image} description={item.description} lieu={item.lieu} date={item.date} event={item} navigation={navigation} />} />
     </View>
   );
 }

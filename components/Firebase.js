@@ -1,6 +1,10 @@
 // Firebase.js
 import { initializeApp } from "firebase/app";
+import { getAuth, initializeAuth, getReactNativePersistence  } from "firebase/auth"; // 👈 import auth
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAEwpAek6JuWKBWxCZRWHIpJpFtLmngzLE",
@@ -13,3 +17,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const storage = getStorage(app, "gs://bddjson.appspot.com");
+
+
+export const auth =
+ Platform.OS === "web"
+   ? getAuth(app) // web garde le comportement standard
+    : initializeAuth(app, {
+       persistence: getReactNativePersistence(AsyncStorage),      });
+
+
+
+
+
