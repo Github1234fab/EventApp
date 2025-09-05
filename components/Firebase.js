@@ -19,7 +19,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
-export const storage = getStorage(app);
+export const storage = getStorage(app, "gs://bddjson.firebasestorage.app");
 
 // ✅ Sur mobile (Android/iOS), on essaye initializeAuth une seule fois,
 // sinon on retombe sur getAuth(app) si déjà initialisé.
