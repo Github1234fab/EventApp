@@ -1,0 +1,48 @@
+[debug] [2025-09-15T13:42:28.332Z] ----------------------------------------------------------------------
+[debug] [2025-09-15T13:42:28.339Z] Command:       /opt/homebrew/Cellar/node/23.6.0/bin/node /Users/fabienmarceau/.npm-global/bin/firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+[debug] [2025-09-15T13:42:28.339Z] CLI Version:   14.16.0
+[debug] [2025-09-15T13:42:28.339Z] Platform:      darwin
+[debug] [2025-09-15T13:42:28.339Z] Node Version:  v23.6.0
+[debug] [2025-09-15T13:42:28.340Z] Time:          Mon Sep 15 2025 15:42:28 GMT+0200 (heure d’été d’Europe centrale)
+[debug] [2025-09-15T13:42:28.340Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-09-15T13:42:28.422Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-15T13:42:28.423Z] > authorizing via signed-in user (gralypho@gmail.com)
+[debug] [2025-09-15T13:42:28.423Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-15T13:42:28.423Z] > authorizing via signed-in user (gralypho@gmail.com)
+[debug] [2025-09-15T13:42:28.423Z] [iam] checking project bddjson for permissions ["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]
+[debug] [2025-09-15T13:42:28.423Z] Checked if tokens are valid: false, expires at: 1757943228708
+[debug] [2025-09-15T13:42:28.423Z] Checked if tokens are valid: false, expires at: 1757943228708
+[debug] [2025-09-15T13:42:28.423Z] > refreshing access token with scopes: []
+[debug] [2025-09-15T13:42:28.424Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-09-15T13:42:28.424Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-09-15T13:42:28.727Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-09-15T13:42:28.728Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-09-15T13:42:28.736Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bddjson:testIamPermissions [none]
+[debug] [2025-09-15T13:42:28.736Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bddjson:testIamPermissions x-goog-quota-user=projects/bddjson
+[debug] [2025-09-15T13:42:28.736Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bddjson:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2025-09-15T13:42:29.624Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bddjson:testIamPermissions 200
+[debug] [2025-09-15T13:42:29.624Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bddjson:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2025-09-15T13:42:29.625Z] Checked if tokens are valid: true, expires at: 1757947347728
+[debug] [2025-09-15T13:42:29.625Z] Checked if tokens are valid: true, expires at: 1757947347728
+[debug] [2025-09-15T13:42:29.625Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/bddjson [none]
+[debug] [2025-09-15T13:42:29.878Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/bddjson 200
+[debug] [2025-09-15T13:42:29.878Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/bddjson {"projectNumber":"797023585100","projectId":"bddjson","lifecycleState":"ACTIVE","name":"BDDJson","labels":{"firebase":"enabled"},"createTime":"2024-09-04T13:27:22.641645Z"}
+[debug] [2025-09-15T13:42:29.878Z] Checked if tokens are valid: true, expires at: 1757947347728
+[debug] [2025-09-15T13:42:29.878Z] Checked if tokens are valid: true, expires at: 1757947347728
+[debug] [2025-09-15T13:42:29.878Z] >>> [apiv2][query] GET https://secretmanager.googleapis.com/v1/projects/bddjson/secrets/STRIPE_WEBHOOK_SECRET [none]
+[debug] [2025-09-15T13:42:30.391Z] <<< [apiv2][status] GET https://secretmanager.googleapis.com/v1/projects/bddjson/secrets/STRIPE_WEBHOOK_SECRET 200
+[debug] [2025-09-15T13:42:30.391Z] <<< [apiv2][body] GET https://secretmanager.googleapis.com/v1/projects/bddjson/secrets/STRIPE_WEBHOOK_SECRET {"name":"projects/797023585100/secrets/STRIPE_WEBHOOK_SECRET","replication":{"automatic":{}},"createTime":"2025-09-12T14:22:26.407009Z","labels":{"firebase-managed":"functions"},"etag":"\"163e9b621cf521\""}
+[debug] [2025-09-15T13:55:02.317Z] ExitPromptError: User force closed the prompt with SIGINT
+    at Interface.sigint (/Users/fabienmarceau/.npm-global/lib/node_modules/firebase-tools/node_modules/@inquirer/core/dist/commonjs/lib/create-prompt.js:101:37)
+    at Interface.emit (node:events:507:28)
+    at Interface.emit (node:domain:489:12)
+    at [_ttyWrite] [as _ttyWrite] (node:internal/readline/interface:1125:18)
+    at ReadStream.onkeypress (node:internal/readline/interface:264:20)
+    at ReadStream.emit (node:events:519:35)
+    at ReadStream.emit (node:domain:489:12)
+    at emitKeys (node:internal/readline/utils:370:14)
+    at emitKeys.next (<anonymous>)
+    at ReadStream.onData (node:internal/readline/emitKeypressEvents:64:36)
+[error] 
+[error] Error: An unexpected error has occurred.

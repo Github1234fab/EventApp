@@ -1,5 +1,4 @@
-// components/NewAd.js
-// components/NewAd.js
+
 import React, { useState } from "react";
 import {
   View,
@@ -170,7 +169,7 @@ export default function NewAd({ navigation }) {
       }
 
       // Envoi dans la collection de soumissions (modération)
-      await addDoc(collection(db, "Submissions"), {
+      const docRef = await addDoc(collection(db, "Submissions"), {
         userId: user.uid,
         titre,
         description,
@@ -182,23 +181,19 @@ export default function NewAd({ navigation }) {
         lien,
         image: imageURL,
         status: "pending",
+        paid: false,                 // 👈 suivi paiement
         createdAt: serverTimestamp(),
       });
 
-      Alert.alert("Envoyé", "Ton annonce a été envoyée pour validation.");
-      // reset
-      setTitre("");
-      setDescription("");
-      setLieu("");
-      setDate("");
-      setHoraire("");
-      setTarif("");
-      setCategorie("");
-      setLien("");
-      setImageUri(null);
-      setImageMeta(null);
+      // 🧭 Redirige vers l’écran de paiement (1,99 €)
+      // (modif principale)
+      Alert.alert("Soumission créée", "Procède au paiement pour finaliser.");
+      navigation.navigate("PayAd", {
+        submissionId: docRef.id,
+        price: 199, // centimes = 1,99 €
+      });
 
-      navigation.goBack();
+   
     } catch (e) {
       Alert.alert("Erreur", e.message);
     } finally {
@@ -290,5 +285,3 @@ const styles = StyleSheet.create({
   },
   preview: { width: "100%", height: 180, borderRadius: 10, marginBottom: 10 },
 });
-
-

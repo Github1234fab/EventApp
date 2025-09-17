@@ -178,7 +178,7 @@ export default function Register({ navigation }) {
       setLoading(true);
       await createUserWithEmailAndPassword(auth, email.trim(), password);
       Alert.alert("Succès", "Compte créé !");
-      navigation.navigate("EventsList"); // redirection après inscription
+      navigation.navigate("EventList"); // redirection après inscription
     } catch (err) {
       Alert.alert("Erreur", err.message);
     } finally {

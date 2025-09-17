@@ -1,10 +1,107 @@
+// import React from "react";
+// import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+// import useFavorites from "./useFavorites";
+
+// // 🔹 On simplifie les props : on ne prend plus chaque champ séparément
+// export default function Card({ navigation, event }) {
+//   return (
+//     <View style={styles.card}>
+//       {event.image ? (
+//         <Image source={{ uri: event.image }} style={styles.image} />
+//       ) : (
+//         <Text style={{ fontStyle: "italic" }}>📷 Pas d’image</Text>
+//       )}
+//       <Text style={styles.title}>{event.titre}</Text>
+//       <Text style={styles.description}>{event.description}</Text>
+//       <Text style={styles.info}>📍 {event.lieu}</Text>
+//       <Text style={styles.info}>📅 {event.date}</Text>
+//       <Text style={styles.info}>💶 {event.tarif}</Text>
+
+//       {/* Bouton vers la vue détaillée */}
+//       <TouchableOpacity
+//         onPress={() => navigation.navigate("EventDetail", { event })} // ✅ On passe l’objet entier
+//       >
+//         <Text style={styles.link}>➡️ Voir plus</Text>
+//       </TouchableOpacity>
+//     </View>
+//   );
+// }
+
+
+// const styles = StyleSheet.create({
+//   card: {
+//     backgroundColor: "#fff",
+//     padding: 16,
+//     marginVertical: 8,
+//     marginHorizontal: 16,
+//     borderRadius: 12,
+//     // Ombre web
+//     boxShadow: "0px 2px 6px rgba(0,0,0,0.2)",
+//     // Ombre mobile
+//     shadowColor: "#000",
+//     shadowOpacity: 0.2,
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowRadius: 5,
+//     elevation: 3,
+//   },
+//   image: {
+//     width: "100%",
+//     height: 180,
+//     borderRadius: 10,
+//     marginBottom: 10,
+//   },
+//   title: {
+//     fontSize: 20,
+//     fontWeight: "bold",
+//     marginBottom: 6,
+//   },
+//   description: {
+//     fontSize: 14,
+//     color: "#555",
+//     marginBottom: 8,
+//   },
+//   info: {
+//     fontSize: 14,
+//     marginBottom: 4,
+//   },
+//   link: {
+//     marginTop: 10,
+//     fontSize: 16,
+//     color: "#007bff",
+//     fontWeight: "bold",
+//     textAlign: "right",
+//   },
+// });
+
+
+
+// ********************************
+// CARD AVEC FAVORI
+// ********************************
+
 import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import useFavorites from "./useFavorites";
 
 // 🔹 On simplifie les props : on ne prend plus chaque champ séparément
 export default function Card({ navigation, event }) {
+  // ✅ Ajout favoris
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const fav = isFavorite?.(event?.id);
+
   return (
     <View style={styles.card}>
+      {/* ❤️ Bouton favori */}
+      <TouchableOpacity
+        style={styles.heart}
+        onPress={() => toggleFavorite(event)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={[styles.heartText, fav && styles.heartActive]}>
+          {fav ? "♥" : "♡"}
+        </Text>
+      </TouchableOpacity>
+
       {event.image ? (
         <Image source={{ uri: event.image }} style={styles.image} />
       ) : (
@@ -26,7 +123,6 @@ export default function Card({ navigation, event }) {
   );
 }
 
-
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
@@ -42,7 +138,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 5,
     elevation: 3,
+    // ✅ nécessaire pour positionner le cœur
+    position: "relative",
   },
+  // ✅ Ajouts pour le cœur
+  heart: {
+    position: "absolute",
+    top: 8,
+    right: 10,
+    zIndex: 2,
+  },
+  heartText: {
+    fontSize: 22,
+    color: "#999",
+  },
+  heartActive: {
+    color: "#e0245e",
+  },
+
   image: {
     width: "100%",
     height: 180,
@@ -71,6 +184,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 });
+
 
 
 
