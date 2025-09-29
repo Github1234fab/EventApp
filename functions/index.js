@@ -36,12 +36,13 @@ exports.createCheckoutSession = onRequest(async (req, res) => {
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
+        payment_method_types: ["card"],        
         line_items: [
           {
             price_data: {
               currency: "eur",
               product_data: { name: "Annonce" },
-              unit_amount: price, // centimes
+              unit_amount: price,
             },
             quantity: 1,
           },
@@ -52,10 +53,10 @@ exports.createCheckoutSession = onRequest(async (req, res) => {
         metadata: { submissionId },
       });
 
-      return res.json({ url: session.url });
-    } catch (e) {
-      console.error("[createCheckoutSession]", e);
-      return res.status(500).json({ error: e.message });
+      return res.status(200).json({ url: session.url });
+    } catch (error) {
+      console.error("[createCheckoutSession] Error:", error.message);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
   });
 });
