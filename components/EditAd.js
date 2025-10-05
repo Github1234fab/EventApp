@@ -1,15 +1,16 @@
-// components/EditAd.js
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, StyleSheet, Image, Alert, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TextInput, Button, StyleSheet, Image, Alert, ScrollView, Linking, TouchableOpacity, Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { db, storage } from "./Firebase";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { auth, db, storage } from "./Firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import dayjs from "dayjs";
 
-// Compat API ImagePicker
+// Compat API ImagePicker (anciennes/nouvelles constantes)
 const mediaTypesCompat = (ImagePicker?.MediaType && ImagePicker.MediaType.Images) || (ImagePicker?.MediaTypeOptions && ImagePicker.MediaTypeOptions.Images);
 
-// Helper: convertir file:// → Blob via XHR
+// --- Helper: convertir file:// → Blob via XHR (fiable avec Expo/Hermes/Android)
 const uriToBlobXHR = (uri) =>
   new Promise((resolve, reject) => {
     try {
@@ -24,97 +25,68 @@ const uriToBlobXHR = (uri) =>
     }
   });
 
-export default function EditAd({ route, navigation }) {
-  const { submissionId } = route.params;
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
+export default function NewAd({ navigation }) {
   const [titre, setTitre] = useState("");
   const [description, setDescription] = useState("");
   const [lieu, setLieu] = useState("");
-  const [date, setDate] = useState("");
-  const [horaire, setHoraire] = useState("");
+  const [date, setDate] = useState(new Date()); // Date object
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [horaire, setHoraire] = useState(""); // ex: 18:00 - 22:00
   const [tarif, setTarif] = useState("");
-  const [categorie, setCategorie] = useState("");
-  const [lien, setLien] = useState("");
+  const [categorie, setCategorie] = useState(""); // orthographe libre
+  const [lien, setLien] = useState(""); // billetterie
 
-  const [originalImageURL, setOriginalImageURL] = useState("");
   const [imageUri, setImageUri] = useState(null);
-  const [imageMeta, setImageMeta] = useState(null);
-  const [imageChanged, setImageChanged] = useState(false);
-
-  // Charger l'annonce existante
-  useEffect(() => {
-    const fetchAd = async () => {
-      try {
-        const docRef = doc(db, "Submissions", submissionId);
-        const docSnap = await getDoc(docRef);
-
-        if (!docSnap.exists()) {
-          Alert.alert("Erreur", "Annonce introuvable.");
-          navigation.goBack();
-          return;
-        }
-
-        const data = docSnap.data();
-        setTitre(data.titre || "");
-        setDescription(data.description || "");
-        setLieu(data.lieu || "");
-        setDate(data.date || "");
-        setHoraire(data.horaire || "");
-        setTarif(data.tarif || "");
-        setCategorie(data.catégorie || "");
-        setLien(data.lien || "");
-        setOriginalImageURL(data.image || "");
-
-        setLoading(false);
-      } catch (e) {
-        console.error("[EditAd] fetch error:", e);
-        Alert.alert("Erreur", "Impossible de charger l'annonce.");
-        navigation.goBack();
-      }
-    };
-
-    fetchAd();
-  }, [submissionId]);
+  const [imageMeta, setImageMeta] = useState(null); // { mimeType, fileName, ... }
+  const [sending, setSending] = useState(false);
 
   const pickImage = async () => {
     try {
+      // 1) Permission
       const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!granted) {
-        Alert.alert("Permission requise", "Autorise l'accès à la galerie.");
-        return;
+        return Alert.alert("Permission requise", "Autorise l'accès à ta galerie pour choisir une image.", [
+          { text: "Annuler", style: "cancel" },
+          { text: "Ouvrir les réglages", onPress: () => Linking.openSettings() },
+        ]);
       }
 
+      // 2) Galerie
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: mediaTypesCompat,
         allowsEditing: false,
         quality: 0.9,
       });
 
-      if (result.canceled) return;
+      // 3) Annulé ?
+      if (result.canceled) {
+        console.log("[ImagePicker] canceled by user");
+        return;
+      }
 
+      // 4) Asset choisi
       const asset = result.assets && result.assets[0];
       if (!asset?.uri) {
         Alert.alert("Erreur", "Aucune image sélectionnée.");
         return;
       }
 
+      console.log("[ImagePicker] selected:", asset);
       setImageUri(asset.uri);
       setImageMeta({
         mimeType: asset.mimeType || null,
         fileName: asset.fileName || null,
       });
-      setImageChanged(true);
     } catch (e) {
       console.error("[ImagePicker] error:", e);
       Alert.alert("Erreur", "Impossible d'ouvrir la galerie.");
     }
   };
 
+  // --- Upload (XHR -> Blob -> uploadBytes)
   const uploadImageAndGetURL = async (uri, uid) => {
     try {
+      // Déduire extension + contentType
       const cleanUri = (uri || "").split("?")[0];
       const m = cleanUri.match(/\.([a-zA-Z0-9]+)$/);
       const extFromUri = (m ? m[1] : "").toLowerCase();
@@ -122,235 +94,201 @@ export default function EditAd({ route, navigation }) {
 
       const contentType = imageMeta?.mimeType || (ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg");
 
+      // file:// → Blob
       const blob = await uriToBlobXHR(uri);
 
+      // Chemin/nom de fichier dans Storage (règles: match /ads/{uid}/**)
       const filename = imageMeta?.fileName || `${Date.now()}.${ext}`;
       const path = `ads/${uid}/${filename}`;
       const storageRef = ref(storage, path);
 
+      // Upload
       await uploadBytes(storageRef, blob, { contentType });
 
+      // Optionnel: libérer le blob si dispo
       try {
         blob.close && blob.close();
       } catch {}
 
+      // URL publique
       const url = await getDownloadURL(storageRef);
       return url;
     } catch (e) {
-      console.error("[Storage upload] error:", e);
+      console.error("[Storage upload] code:", e?.code, "message:", e?.message, "serverResponse:", e?.customData?.serverResponse);
       throw e;
     }
   };
 
-  const onSave = async () => {
+  const onDateChange = (event, selectedDate) => {
+    // Sur Android, le picker se ferme automatiquement
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
+  const onSubmit = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("Non connecté", "Connecte-toi pour publier une annonce.");
+      return;
+    }
     if (!titre || !date || !lieu) {
       Alert.alert("Champs requis", "Titre, date et lieu sont obligatoires.");
       return;
     }
 
     try {
-      setSaving(true);
-      let imageURL = originalImageURL;
+      setSending(true);
+      let imageURL = "";
 
-      // Upload nouvelle image si changée
-      if (imageChanged && imageUri) {
-        console.log("[EditAd] uploading new image:", imageUri);
-        imageURL = await uploadImageAndGetURL(imageUri, "admin-edit");
-        console.log("[EditAd] new image uploaded:", imageURL);
+      if (imageUri) {
+        console.log("[NewAd] uploading image:", imageUri);
+        imageURL = await uploadImageAndGetURL(imageUri, user.uid);
+        console.log("[NewAd] image uploaded:", imageURL);
       }
 
-      // Mettre à jour l'annonce
-      await updateDoc(doc(db, "Submissions", submissionId), {
+      // Convertir la date en format YYYY-MM-DD pour Firestore
+      const dateFormatted = dayjs(date).format("YYYY-MM-DD");
+
+      // Envoi dans la collection de soumissions (modération)
+      const docRef = await addDoc(collection(db, "Submissions"), {
+        userId: user.uid,
         titre,
         description,
         lieu,
-        date,
+        date: dateFormatted,
         horaire,
         tarif,
         catégorie: categorie,
         lien,
         image: imageURL,
-        editedByAdmin: true,
-        editedAt: serverTimestamp(),
+        status: "pending",
+        paid: false,
+        createdAt: serverTimestamp(),
       });
 
-      Alert.alert(
-        "✅ Modifications enregistrées",
-        "L'annonce a été mise à jour avec succès.",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      // 🧭 Redirige vers l'écran de paiement
+      Alert.alert("Soumission créée", "Procède au paiement pour finaliser.");
+      navigation.navigate("PayAd", {
+        submissionId: docRef.id,
+        price: 100, // centimes = 1 €
+      });
     } catch (e) {
-      console.error("[EditAd] save error:", e);
       Alert.alert("Erreur", e.message);
     } finally {
-      setSaving(false);
+      setSending(false);
     }
   };
 
-  const onSaveAndApprove = async () => {
-    Alert.alert(
-      "Sauvegarder et approuver ?",
-      "Les modifications seront enregistrées et l'annonce sera immédiatement publiée.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Confirmer",
-          onPress: async () => {
-            if (!titre || !date || !lieu) {
-              Alert.alert("Champs requis", "Titre, date et lieu sont obligatoires.");
-              return;
-            }
-
-            try {
-              setSaving(true);
-              let imageURL = originalImageURL;
-
-              if (imageChanged && imageUri) {
-                imageURL = await uploadImageAndGetURL(imageUri, "admin-edit");
-              }
-
-              await updateDoc(doc(db, "Submissions", submissionId), {
-                titre,
-                description,
-                lieu,
-                date,
-                horaire,
-                tarif,
-                catégorie: categorie,
-                lien,
-                image: imageURL,
-                status: "approved",
-                editedByAdmin: true,
-                moderatedAt: serverTimestamp(),
-              });
-
-              Alert.alert(
-                "✅ Annonce publiée",
-                "Les modifications ont été enregistrées et l'annonce est maintenant visible.",
-                [
-                  {
-                    text: "OK",
-                    onPress: () => navigation.goBack(),
-                  },
-                ]
-              );
-            } catch (e) {
-              console.error("[EditAd] save+approve error:", e);
-              Alert.alert("Erreur", e.message);
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 8, color: "#666" }}>Chargement...</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
-      <Text style={styles.h1}>✏️ Modifier l'annonce</Text>
+      <Text style={styles.h1}>Nouvelle annonce</Text>
 
-      <Text style={styles.notice}>
-        🛡️ Mode administrateur : vous pouvez modifier tous les champs de cette annonce.
-      </Text>
-
-      <TextInput style={styles.input} placeholder="Titre *" value={titre} onChangeText={setTitre} />
-      <TextInput
-        style={[styles.input, { height: 100 }]}
-        placeholder="Description"
-        value={description}
-        onChangeText={setDescription}
-        multiline
+      <TextInput 
+        style={styles.input} 
+        placeholder="Titre *" 
+        value={titre} 
+        onChangeText={setTitre} 
       />
-      <TextInput style={styles.input} placeholder="Lieu *" value={lieu} onChangeText={setLieu} />
-      <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD) *" value={date} onChangeText={setDate} />
-      <TextInput style={styles.input} placeholder="Horaire (ex: 18:00 - 22:00)" value={horaire} onChangeText={setHoraire} />
-      <TextInput style={styles.input} placeholder="Tarif (ex: 2 euros)" value={tarif} onChangeText={setTarif} />
-      <TextInput style={styles.input} placeholder="Catégorie (ex: Cinema)" value={categorie} onChangeText={setCategorie} />
-      <TextInput style={styles.input} placeholder="Lien billetterie" value={lien} onChangeText={setLien} />
+      
+      <TextInput 
+        style={[styles.input, { height: 100 }]} 
+        placeholder="Description" 
+        value={description} 
+        onChangeText={setDescription} 
+        multiline 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Lieu *" 
+        value={lieu} 
+        onChangeText={setLieu} 
+      />
 
-      {/* Affichage image */}
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.preview} />
-      ) : originalImageURL ? (
-        <Image source={{ uri: originalImageURL }} style={styles.preview} />
-      ) : (
-        <View style={[styles.preview, styles.noImage]}>
-          <Text style={{ color: "#999" }}>📷 Aucune image</Text>
-        </View>
+      {/* DatePicker pour la date */}
+      <View style={styles.datePickerContainer}>
+        <Text style={styles.label}>Date de l'événement *</Text>
+        <TouchableOpacity 
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateButtonText}>
+            📅 {dayjs(date).format("dddd D MMMM YYYY")}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={onDateChange}
+          locale="fr-FR"
+          minimumDate={new Date()}
+        />
       )}
 
-      <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-        <Text style={styles.imageButtonText}>
-          {imageUri || originalImageURL ? "📷 Changer l'image" : "📷 Ajouter une image"}
-        </Text>
-      </TouchableOpacity>
+      {/* Sur iOS, ajouter un bouton "OK" pour fermer le picker */}
+      {showDatePicker && Platform.OS === "ios" && (
+        <Button title="✓ Confirmer" onPress={() => setShowDatePicker(false)} />
+      )}
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Horaire (ex: 18:00 - 22:00)" 
+        value={horaire} 
+        onChangeText={setHoraire} 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Tarif (ex: 2 euros)" 
+        value={tarif} 
+        onChangeText={setTarif} 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Catégorie (ex: Cinema)" 
+        value={categorie} 
+        onChangeText={setCategorie} 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Lien billetterie" 
+        value={lien} 
+        onChangeText={setLien} 
+      />
 
-      <View style={{ height: 20 }} />
+      {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : null}
+      <Button title={imageUri ? "Changer l'image" : "Choisir une image"} onPress={pickImage} />
 
-      {/* Boutons d'action */}
-      <TouchableOpacity
-        style={[styles.button, styles.saveButton, saving && styles.disabledButton]}
-        onPress={onSave}
-        disabled={saving}
-      >
-        <Text style={styles.buttonText}>{saving ? "Enregistrement..." : "💾 Enregistrer"}</Text>
-      </TouchableOpacity>
+      {/* Mention légale */}
+      <Text style={styles.legalNotice}>
+        ⚠️ En soumettant cette annonce, vous acceptez que notre équipe puisse la modifier 
+        si elle ne respecte pas nos conditions de publication. Le paiement ne sera pas remboursé 
+        en cas de modification ou de rejet justifié.
+      </Text>
 
-      <TouchableOpacity
-        style={[styles.button, styles.approveButton, saving && styles.disabledButton]}
-        onPress={onSaveAndApprove}
-        disabled={saving}
-      >
-        <Text style={styles.buttonText}>{saving ? "Enregistrement..." : "✅ Enregistrer et Approuver"}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.button, styles.cancelButton]}
-        onPress={() => navigation.goBack()}
-        disabled={saving}
-      >
-        <Text style={styles.buttonText}>↩️ Annuler</Text>
-      </TouchableOpacity>
+      <View style={{ height: 12 }} />
+      <Button title={sending ? "Envoi..." : "Envoyer l'annonce"} onPress={onSubmit} disabled={sending} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  loader: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-  },
-  h1: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  notice: {
-    backgroundColor: "#E3F2FD",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    color: "#1565C0",
-    fontSize: 13,
-    textAlign: "center",
+  h1: { 
+    fontSize: 22, 
+    fontWeight: "bold", 
+    marginBottom: 12, 
+    textAlign: "center" 
   },
   input: {
     borderWidth: 1,
@@ -360,49 +298,42 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: "#fff",
   },
-  preview: {
-    width: "100%",
-    height: 180,
-    borderRadius: 10,
+  datePickerContainer: {
     marginBottom: 10,
-    backgroundColor: "#f0f0f0",
   },
-  noImage: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  imageButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  imageButtonText: {
-    color: "#fff",
-    fontSize: 15,
+  label: {
+    fontSize: 14,
     fontWeight: "600",
+    marginBottom: 6,
+    color: "#333",
   },
-  button: {
-    paddingVertical: 14,
+  dateButton: {
+    borderWidth: 1,
+    borderColor: "#007AFF",
     borderRadius: 8,
+    padding: 14,
+    backgroundColor: "#F0F8FF",
     alignItems: "center",
-    marginBottom: 10,
   },
-  saveButton: {
-    backgroundColor: "#007AFF",
-  },
-  approveButton: {
-    backgroundColor: "#34C759",
-  },
-  cancelButton: {
-    backgroundColor: "#8E8E93",
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: "#fff",
+  dateButtonText: {
     fontSize: 16,
+    color: "#007AFF",
     fontWeight: "600",
+  },
+  preview: { 
+    width: "100%", 
+    height: 180, 
+    borderRadius: 10, 
+    marginBottom: 10 
+  },
+  legalNotice: {
+    fontSize: 12,
+    color: "#666",
+    marginVertical: 12,
+    padding: 10,
+    backgroundColor: "#FFF3CD",
+    borderRadius: 8,
+    textAlign: "center",
+    lineHeight: 18,
   },
 });

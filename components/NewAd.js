@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Image, Alert, ScrollView, Linking } from "react-native";
+import { View, Text, TextInput, Button, StyleSheet, Image, Alert, ScrollView, Linking, TouchableOpacity, Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { auth, db, storage } from "./Firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import dayjs from "dayjs";
 
 // Compat API ImagePicker (anciennes/nouvelles constantes)
 const mediaTypesCompat = (ImagePicker?.MediaType && ImagePicker.MediaType.Images) || (ImagePicker?.MediaTypeOptions && ImagePicker.MediaTypeOptions.Images);
@@ -27,7 +29,8 @@ export default function NewAd({ navigation }) {
   const [titre, setTitre] = useState("");
   const [description, setDescription] = useState("");
   const [lieu, setLieu] = useState("");
-  const [date, setDate] = useState(""); // ex: 2025-09-20
+  const [date, setDate] = useState(new Date()); // Date object
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [horaire, setHoraire] = useState(""); // ex: 18:00 - 22:00
   const [tarif, setTarif] = useState("");
   const [categorie, setCategorie] = useState(""); // orthographe libre
@@ -42,7 +45,7 @@ export default function NewAd({ navigation }) {
       // 1) Permission
       const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!granted) {
-        return Alert.alert("Permission requise", "Autorise l’accès à ta galerie pour choisir une image.", [
+        return Alert.alert("Permission requise", "Autorise l'accès à ta galerie pour choisir une image.", [
           { text: "Annuler", style: "cancel" },
           { text: "Ouvrir les réglages", onPress: () => Linking.openSettings() },
         ]);
@@ -76,7 +79,7 @@ export default function NewAd({ navigation }) {
       });
     } catch (e) {
       console.error("[ImagePicker] error:", e);
-      Alert.alert("Erreur", "Impossible d’ouvrir la galerie.");
+      Alert.alert("Erreur", "Impossible d'ouvrir la galerie.");
     }
   };
 
@@ -116,6 +119,17 @@ export default function NewAd({ navigation }) {
     }
   };
 
+  const onDateChange = (event, selectedDate) => {
+    // Sur Android, le picker se ferme automatiquement
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
   const onSubmit = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -137,29 +151,31 @@ export default function NewAd({ navigation }) {
         console.log("[NewAd] image uploaded:", imageURL);
       }
 
+      // Convertir la date en format YYYY-MM-DD pour Firestore
+      const dateFormatted = dayjs(date).format("YYYY-MM-DD");
+
       // Envoi dans la collection de soumissions (modération)
       const docRef = await addDoc(collection(db, "Submissions"), {
         userId: user.uid,
         titre,
         description,
         lieu,
-        date,
+        date: dateFormatted,
         horaire,
         tarif,
         catégorie: categorie,
         lien,
         image: imageURL,
         status: "pending",
-        paid: false, // 👈 suivi paiement
+        paid: false,
         createdAt: serverTimestamp(),
       });
 
-      // 🧭 Redirige vers l’écran de paiement (1,99 €)
-      // (modif principale)
+      // 🧭 Redirige vers l'écran de paiement
       Alert.alert("Soumission créée", "Procède au paiement pour finaliser.");
       navigation.navigate("PayAd", {
         submissionId: docRef.id,
-        price: 100, // centimes = 0,50 €
+        price: 100, // centimes = 1 €
       });
     } catch (e) {
       Alert.alert("Erreur", e.message);
@@ -172,20 +188,98 @@ export default function NewAd({ navigation }) {
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
       <Text style={styles.h1}>Nouvelle annonce</Text>
 
-      <TextInput style={styles.input} placeholder="Titre *" value={titre} onChangeText={setTitre} />
-      <TextInput style={[styles.input, { height: 100 }]} placeholder="Description" value={description} onChangeText={setDescription} multiline />
-      <TextInput style={styles.input} placeholder="Lieu *" value={lieu} onChangeText={setLieu} />
-      <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD) *" value={date} onChangeText={setDate} />
-      <TextInput style={styles.input} placeholder="Horaire (ex: 18:00 - 22:00)" value={horaire} onChangeText={setHoraire} />
-      <TextInput style={styles.input} placeholder="Tarif (ex: 2 euros)" value={tarif} onChangeText={setTarif} />
-      <TextInput style={styles.input} placeholder="Catégorie (ex: Cinema)" value={categorie} onChangeText={setCategorie} />
-      <TextInput style={styles.input} placeholder="Lien billetterie" value={lien} onChangeText={setLien} />
+        {/* Mention légale */}
+        <Text style={styles.legalNotice}>
+        ⚠️ <Text style={{ fontWeight: "bold" }}>Important :</Text> Vérifiez bien toutes vos informations avant de payer. 
+        Une fois le paiement effectué, vous ne pourrez plus modifier votre annonce. 
+        Seule notre équipe pourra la modifier si elle ne respecte pas nos conditions de publication. 
+        Le paiement ne sera pas remboursé en cas de modification ou de rejet justifié.
+      </Text>
+
+
+      <TextInput 
+        style={styles.input} 
+        placeholder="Titre *" 
+        value={titre} 
+        onChangeText={setTitre} 
+      />
+      
+      <TextInput 
+        style={[styles.input, { height: 100 }]} 
+        placeholder="Description" 
+        value={description} 
+        onChangeText={setDescription} 
+        multiline 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Lieu *" 
+        value={lieu} 
+        onChangeText={setLieu} 
+      />
+
+      {/* DatePicker pour la date */}
+      <View style={styles.datePickerContainer}>
+        <Text style={styles.label}>Date de l'événement *</Text>
+        <TouchableOpacity 
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateButtonText}>
+            📅 {dayjs(date).format("dddd D MMMM YYYY")}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={onDateChange}
+          locale="fr-FR"
+          minimumDate={new Date()}
+        />
+      )}
+
+      {/* Sur iOS, ajouter un bouton "OK" pour fermer le picker */}
+      {showDatePicker && Platform.OS === "ios" && (
+        <Button title="✓ Confirmer" onPress={() => setShowDatePicker(false)} />
+      )}
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Horaire (ex: 18:00 - 22:00)" 
+        value={horaire} 
+        onChangeText={setHoraire} 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Tarif (ex: 2 euros)" 
+        value={tarif} 
+        onChangeText={setTarif} 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Catégorie (ex: Cinema)" 
+        value={categorie} 
+        onChangeText={setCategorie} 
+      />
+      
+      <TextInput 
+        style={styles.input} 
+        placeholder="Lien billetterie" 
+        value={lien} 
+        onChangeText={setLien} 
+      />
 
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : null}
       <Button title={imageUri ? "Changer l'image" : "Choisir une image"} onPress={pickImage} />
 
-      <Text style={styles.legalNotice}>⚠️ En soumettant cette annonce, vous acceptez que notre équipe puisse la modifier si elle ne respecte pas nos conditions de publication. Le paiement ne sera pas remboursé en cas de modification ou de rejet justifié.</Text>
-
+    
       <View style={{ height: 12 }} />
       <Button title={sending ? "Envoi..." : "Envoyer l'annonce"} onPress={onSubmit} disabled={sending} />
     </ScrollView>
@@ -193,7 +287,12 @@ export default function NewAd({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontSize: 22, fontWeight: "bold", marginBottom: 12, textAlign: "center" },
+  h1: { 
+    fontSize: 22, 
+    fontWeight: "bold", 
+    marginBottom: 12, 
+    textAlign: "center" 
+  },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -202,7 +301,34 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: "#fff",
   },
-  preview: { width: "100%", height: 180, borderRadius: 10, marginBottom: 10 },
+  datePickerContainer: {
+    marginBottom: 10,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    color: "#333",
+  },
+  dateButton: {
+    borderWidth: 1,
+    borderColor: "#007AFF",
+    borderRadius: 8,
+    padding: 14,
+    backgroundColor: "#F0F8FF",
+    alignItems: "center",
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  preview: { 
+    width: "100%", 
+    height: 180, 
+    borderRadius: 10, 
+    marginBottom: 10 
+  },
   legalNotice: {
     fontSize: 12,
     color: "#666",
@@ -214,4 +340,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-
