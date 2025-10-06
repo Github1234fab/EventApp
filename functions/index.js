@@ -187,8 +187,6 @@
 
 // functions/index.js - Cloud Functions v2 (HTTP)
 
-// functions/index.js - Cloud Functions v2 (HTTP)
-
 const { onRequest } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
@@ -271,7 +269,10 @@ exports.createCheckoutSession = onRequest(async (req, res) => {
           userId: data.userId || "",
           titre: data.titre || "",
         },
-        // Pas de payment_intent_data si on ne veut pas modifier les defaults
+        // Important pour le 3DS
+        payment_intent_data: {
+          setup_future_usage: null, // Ne pas sauvegarder la carte
+        },
       });
 
       console.log("[createCheckoutSession] Session créée:", {

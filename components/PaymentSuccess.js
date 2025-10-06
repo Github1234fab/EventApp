@@ -1,82 +1,148 @@
-// components/PaymentSuccess.js
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking } from "react-native";
-import { db } from "./Firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { formatDate } from "../utils/dateFormatter";
+// components/MyPayments.js
+import React, { useEffect, useState } from "react";
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, Linking } from "react-native";
+import { auth, db } from "./Firebase";
+import { collection, query, where, orderBy, onSnapshot,  doc, getDoc } from "firebase/firestore";
 import dayjs from "dayjs";
 
-export default function PaymentSuccess({ route, navigation }) {
-  const { submissionId } = route.params || {};
+export default function MyPayments({ navigation }) {
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [paymentData, setPaymentData] = useState(null);
-  const [adData, setAdData] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!submissionId) {
-        setLoading(false);
-        return;
-      }
+    const user = auth.currentUser;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const docRef = doc(db, "Submissions", submissionId);
-        const docSnap = await getDoc(docRef);
+    // ✅ Changé orderBy de "paidAt" à "createdAt" pour éviter l'erreur d'index
+    const q = query(
+      collection(db, "Submissions"),
+      where("userId", "==", user.uid),
+      where("paid", "==", true),
+      orderBy("createdAt", "desc") // ← Correction ici
+    );
 
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setAdData(data);
-          
-          // Extraire les infos de paiement
-          setPaymentData({
-            paid: data.paid || false,
-            paidAt: data.paidAt,
-            amountTotal: data.amountTotal || 0,
-            currency: data.currency || "eur",
-            customerEmail: data.customerEmail || "",
-            stripeSessionId: data.stripeSessionId || "",
-            paymentIntent: data.paymentIntent || "",
-          });
+    const unsub = onSnapshot(
+        q,
+        (snap) => {
+          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setPayments(data);
+          setLoading(false);
+        },
+        (err) => {
+          console.error("[MyPayments] error:", err);
+          // Supprimer l'Alert.alert ici pour éviter l'alerte
+          // Laisser juste le console.error pour le debug
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("[PaymentSuccess] error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      );
+    return () => unsub();
+  }, []);
 
-    fetchData();
-  }, [submissionId]);
-
-  const handleEmailReceipt = () => {
-    if (!paymentData?.customerEmail) {
+  const handleRequestReceipt = (item) => {
+    if (!item.customerEmail) {
       Alert.alert(
-        "Email non disponible",
-        "Aucune adresse email associée à ce paiement. Vérifiez votre compte Stripe."
+        "Reçu non disponible",
+        "Aucune adresse email associée à ce paiement."
       );
       return;
     }
 
     Alert.alert(
       "Reçu par email",
-      `Un reçu sera automatiquement envoyé par Stripe à ${paymentData.customerEmail}`,
+      `Un reçu a été automatiquement envoyé par Stripe à l'adresse ${item.customerEmail} lors du paiement.\n\nVous pouvez également consulter vos transactions dans votre compte Stripe.`,
       [{ text: "OK" }]
     );
   };
 
-  const handleViewStripeDashboard = () => {
-    if (!paymentData?.stripeSessionId) return;
-    
-    // Lien Stripe Dashboard (mode test ou live selon votre config)
-    const url = `https://dashboard.stripe.com/test/payments/${paymentData.paymentIntent}`;
-    
+  const handleContactSupport = () => {
     Alert.alert(
-      "Accès administrateur",
-      "Ce lien est réservé aux administrateurs Stripe.",
+      "Besoin d'aide ?",
+      "Pour toute question concernant vos paiements, contactez-nous à support@votre-app.com",
       [
         { text: "Annuler", style: "cancel" },
-        { text: "Ouvrir", onPress: () => Linking.openURL(url) },
+        {
+          text: "Envoyer un email",
+          onPress: () => Linking.openURL("mailto:support@votre-app.com"),
+        },
       ]
+    );
+  };
+
+  const renderItem = ({ item }) => {
+    const paidDate = item.paidAt?.toDate
+      ? dayjs(item.paidAt.toDate()).format("DD MMMM YYYY à HH[h]mm")
+      : item.createdAt?.toDate
+      ? dayjs(item.createdAt.toDate()).format("DD MMMM YYYY à HH[h]mm")
+      : "Date inconnue";
+    const amount = ((item.amountTotal || 100) / 100).toFixed(2);
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.successIcon}>
+            <Text style={styles.successIconText}>✓</Text>
+          </View>
+          <View style={styles.headerContent}>
+            <Text style={styles.title} numberOfLines={2}>
+              {item.titre || "Sans titre"}
+            </Text>
+            <Text style={styles.date}>{paidDate}</Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.infoRow}>
+          <Text style={styles.label}>Montant payé</Text>
+          <Text style={styles.amount}>{amount}€</Text>
+        </View>
+
+        {item.customerEmail && (
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Email</Text>
+            <Text style={styles.value} numberOfLines={1}>
+              {item.customerEmail}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.infoRow}>
+          <Text style={styles.label}>Statut annonce</Text>
+          <Text style={styles.value}>
+            {item.status === "pending" && "⏱️ En modération"}
+            {item.status === "approved" && "✅ Publiée"}
+            {item.status === "rejected" && "❌ Refusée"}
+          </Text>
+        </View>
+
+        {item.stripeSessionId && (
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>ID Transaction</Text>
+            <Text style={styles.transactionId} numberOfLines={1}>
+              {item.stripeSessionId.substring(0, 24)}...
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => handleRequestReceipt(item)}
+          >
+            <Text style={styles.buttonText}>📧 Reçu par email</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
+            onPress={() => navigation.navigate("EventDetail", { event: item })}
+          >
+            <Text style={styles.secondaryButtonText}>👁️ Voir l'annonce</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
@@ -84,344 +150,87 @@ export default function PaymentSuccess({ route, navigation }) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#34C759" />
-        <Text style={styles.loaderText}>Chargement des détails...</Text>
+        <Text style={styles.loaderText}>Chargement de vos paiements...</Text>
       </View>
     );
   }
 
-  if (!paymentData?.paid) {
+  if (payments.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.errorBox}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorTitle}>Paiement non confirmé</Text>
-          <Text style={styles.errorText}>
-            Le paiement n'a pas encore été validé. Veuillez patienter quelques instants.
-          </Text>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate("MyAds")}
-          >
-            <Text style={styles.buttonText}>Voir mes annonces</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.empty}>
+        <Text style={styles.emptyIcon}>💳</Text>
+        <Text style={styles.emptyTitle}>Aucun paiement</Text>
+        <Text style={styles.emptyText}>
+          Vous n'avez pas encore effectué de paiement pour vos annonces.
+        </Text>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => navigation.navigate("NewAd")}
+        >
+          <Text style={styles.createButtonText}>Créer une annonce</Text>
+        </TouchableOpacity>
       </View>
     );
   }
-
-  const amount = ((paymentData.amountTotal || 0) / 100).toFixed(2);
-  const paidDate = paymentData.paidAt?.toDate
-    ? dayjs(paymentData.paidAt.toDate()).format("DD/MM/YYYY [à] HH[h]mm")
-    : "Date inconnue";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Success Header */}
-      <View style={styles.successHeader}>
-        <View style={styles.successIconContainer}>
-          <Text style={styles.successIcon}>✓</Text>
-        </View>
-        <Text style={styles.successTitle}>Paiement réussi !</Text>
-        <Text style={styles.successSubtitle}>
-          Votre annonce est en cours de modération
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>💳 Mes paiements</Text>
+        <Text style={styles.headerSubtitle}>
+          {payments.length} paiement{payments.length > 1 ? "s" : ""} effectué{payments.length > 1 ? "s" : ""}
         </Text>
       </View>
 
-      {/* Annonce Details */}
-      {adData && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Votre annonce</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Titre</Text>
-            <Text style={styles.infoValue}>{adData.titre || "Sans titre"}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Lieu</Text>
-            <Text style={styles.infoValue}>{adData.lieu || "—"}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Date</Text>
-            <Text style={styles.infoValue}>
-              {adData.date ? formatDate(adData.date, "long") : "—"}
-            </Text>
-          </View>
-        </View>
-      )}
+      <FlatList
+        data={payments}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+      />
 
-      {/* Payment Details */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Détails du paiement</Text>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Montant</Text>
-          <Text style={[styles.infoValue, styles.amount]}>
-            {amount} {paymentData.currency.toUpperCase()}
-          </Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Date de paiement</Text>
-          <Text style={styles.infoValue}>{paidDate}</Text>
-        </View>
-
-        {paymentData.customerEmail && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{paymentData.customerEmail}</Text>
-          </View>
-        )}
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>ID Transaction</Text>
-          <Text style={styles.infoValueSmall} numberOfLines={1}>
-            {paymentData.stripeSessionId || "—"}
-          </Text>
-        </View>
-      </View>
-
-      {/* Next Steps */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Prochaines étapes</Text>
-        <View style={styles.stepContainer}>
-          <View style={styles.step}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>1</Text>
-            </View>
-            <Text style={styles.stepText}>
-              Votre annonce est en cours de modération par notre équipe
-            </Text>
-          </View>
-          <View style={styles.step}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>2</Text>
-            </View>
-            <Text style={styles.stepText}>
-              Une fois validée, elle sera visible publiquement
-            </Text>
-          </View>
-          <View style={styles.step}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>3</Text>
-            </View>
-            <Text style={styles.stepText}>
-              Vous pouvez suivre son statut dans "Mes annonces"
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Actions */}
-      <View style={styles.actions}>
-        {paymentData.customerEmail && (
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
-            onPress={handleEmailReceipt}
-          >
-            <Text style={styles.secondaryButtonText}>📧 Reçu par email</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("MyAds")}
-        >
-          <Text style={styles.buttonText}>Voir mes annonces</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.tertiaryButton]}
-          onPress={() => navigation.navigate("EventsList")}
-        >
-          <Text style={styles.tertiaryButtonText}>Retour aux événements</Text>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.supportButton} onPress={handleContactSupport}>
+          <Text style={styles.supportButtonText}>❓ Besoin d'aide ?</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-  },
-  loaderText: {
-    marginTop: 8,
-    color: "#666",
-    fontSize: 14,
-  },
-  errorBox: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  errorIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 8,
-    color: "#333",
-  },
-  errorText: {
-    fontSize: 15,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  successHeader: {
-    alignItems: "center",
-    marginBottom: 24,
-    paddingVertical: 20,
-  },
-  successIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#34C759",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  successIcon: {
-    fontSize: 48,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  successTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
-  },
-  successSubtitle: {
-    fontSize: 15,
-    color: "#666",
-    textAlign: "center",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: "#999",
-    fontWeight: "600",
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "500",
-    flex: 2,
-    textAlign: "right",
-  },
-  infoValueSmall: {
-    fontSize: 12,
-    color: "#666",
-    fontFamily: "monospace",
-    flex: 2,
-    textAlign: "right",
-  },
-  amount: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#34C759",
-  },
-  stepContainer: {
-    gap: 12,
-  },
-  step: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  stepNumberText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  stepText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#555",
-    lineHeight: 20,
-    paddingTop: 4,
-  },
-  actions: {
-    gap: 12,
-    marginTop: 8,
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  secondaryButton: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#007AFF",
-  },
-  secondaryButtonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  tertiaryButton: {
-    backgroundColor: "transparent",
-  },
-  tertiaryButtonText: {
-    color: "#007AFF",
-    fontSize: 15,
-    fontWeight: "500",
-  },
+  container: { flex: 1, backgroundColor: "#f9f9f9" },
+  loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f9f9f9" },
+  loaderText: { marginTop: 8, color: "#666" },
+  empty: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  emptyIcon: { fontSize: 64, marginBottom: 16 },
+  emptyTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 8, color: "#333" },
+  emptyText: { fontSize: 15, color: "#666", textAlign: "center", marginBottom: 24, lineHeight: 22 },
+  createButton: { backgroundColor: "#007AFF", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
+  createButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  header: { backgroundColor: "#fff", padding: 16, borderBottomWidth: 1, borderBottomColor: "#e0e0e0" },
+  headerTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 4 },
+  headerSubtitle: { fontSize: 14, color: "#666" },
+  listContent: { padding: 12, paddingBottom: 80 },
+  card: { backgroundColor: "#fff", borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
+  successIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#34C759", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  successIconText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+  headerContent: { flex: 1 },
+  title: { fontSize: 16, fontWeight: "bold", color: "#333", marginBottom: 4 },
+  date: { fontSize: 13, color: "#999" },
+  divider: { height: 1, backgroundColor: "#f0f0f0", marginVertical: 12 },
+  infoRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "center" },
+  label: { fontSize: 13, color: "#999", fontWeight: "600" },
+  value: { fontSize: 13, color: "#333", fontWeight: "500", flex: 1, textAlign: "right" },
+  amount: { fontSize: 18, fontWeight: "bold", color: "#34C759" },
+  transactionId: { fontSize: 11, color: "#666", fontFamily: "monospace", flex: 1, textAlign: "right" },
+  actions: { flexDirection: "row", marginTop: 12, gap: 8 },
+  button: { flex: 1, backgroundColor: "#007AFF", paddingVertical: 10, borderRadius: 8, alignItems: "center" },
+  buttonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  secondaryButton: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#007AFF" },
+  secondaryButtonText: { color: "#007AFF", fontSize: 14, fontWeight: "600" },
+  footer: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", padding: 16, borderTopWidth: 1, borderTopColor: "#e0e0e0" },
+  supportButton: { backgroundColor: "#f0f0f0", paddingVertical: 12, borderRadius: 8, alignItems: "center" },
+  supportButtonText: { color: "#666", fontSize: 14, fontWeight: "600" },
 });
