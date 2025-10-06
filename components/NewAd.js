@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Image, Alert, ScrollView, Linking, TouchableOpacity, Platform } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
@@ -94,11 +94,20 @@ export default function NewAd({ navigation }) {
   const [horairePersonnalise, setHorairePersonnalise] = useState("");
   const [tarif, setTarif] = useState("");
   const [categorie, setCategorie] = useState("");
+  const [contact, setContact] = useState("");
   const [lien, setLien] = useState("");
 
   const [imageUri, setImageUri] = useState(null);
   const [imageMeta, setImageMeta] = useState(null);
   const [sending, setSending] = useState(false);
+
+  // Pré-remplir le contact avec l'email du user
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (user?.email) {
+      setContact(user.email);
+    }
+  }, []);
 
   const pickImage = async () => {
     try {
@@ -172,7 +181,7 @@ export default function NewAd({ navigation }) {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
-
+    
     if (selectedDate) {
       setDate(selectedDate);
     }
@@ -184,18 +193,16 @@ export default function NewAd({ navigation }) {
       Alert.alert("Non connecté", "Connecte-toi pour publier une annonce.");
       return;
     }
-
+    
     const lieuFinal = lieu === "Autre" ? lieuAutre : lieu;
     const horaireFinal = horaire === "Personnalisé" ? horairePersonnalise : horaire;
-
-    // 👇 Correction ici : gérer les cas vide, "0", ou nombre
     const tarifFinal = !tarif || tarif.trim() === "" || tarif === "0" ? "Gratuit" : `${tarif}€`;
-
+    
     if (!titre || !date || !lieuFinal) {
       Alert.alert("Champs requis", "Titre, date et lieu sont obligatoires.");
       return;
     }
-
+    
     if (!categorie) {
       Alert.alert("Catégorie requise", "Veuillez sélectionner une catégorie.");
       return;
@@ -222,6 +229,7 @@ export default function NewAd({ navigation }) {
         horaire: horaireFinal,
         tarif: tarifFinal,
         catégorie: categorie,
+        contact: contact || user.email,
         lien,
         image: imageURL,
         status: "pending",
@@ -245,20 +253,35 @@ export default function NewAd({ navigation }) {
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
       <Text style={styles.h1}>Nouvelle annonce</Text>
 
-      {/* Mention légale */}
       <Text style={styles.legalNotice}>
-        <Text style={{ fontWeight: "bold" }}>Important :</Text> Vérifiez bien toutes vos informations avant de payer. Une fois le paiement effectué, vous ne pourrez plus modifier votre annonce. Seule notre équipe de modération pourra la modifier si elle ne respecte pas nos conditions de publication.
+        <Text style={{ fontWeight: "bold" }}>Important :</Text> Vérifiez bien toutes vos informations avant de payer. 
+        Une fois le paiement effectué, vous ne pourrez plus modifier votre annonce. 
+        Seule notre équipe pourra la modifier si elle ne respecte pas nos conditions de publication. 
         Le paiement ne sera pas remboursé en cas de modification ou de rejet justifié.
       </Text>
 
-      <TextInput style={styles.input} placeholder="Titre *" value={titre} onChangeText={setTitre} />
+      <TextInput 
+        style={styles.input} 
+        placeholder="Titre *" 
+        value={titre} 
+        onChangeText={setTitre} 
+      />
+      
+      <TextInput 
+        style={[styles.input, { height: 100 }]} 
+        placeholder="Description" 
+        value={description} 
+        onChangeText={setDescription} 
+        multiline 
+      />
 
-      <TextInput style={[styles.input, { height: 100 }]} placeholder="Description" value={description} onChangeText={setDescription} multiline />
-
-      {/* Picker Catégorie */}
       <View style={styles.pickerContainer}>
         <Text style={styles.label}>Catégorie *</Text>
-        <Picker selectedValue={categorie} onValueChange={(itemValue) => setCategorie(itemValue)} style={styles.picker}>
+        <Picker
+          selectedValue={categorie}
+          onValueChange={(itemValue) => setCategorie(itemValue)}
+          style={styles.picker}
+        >
           <Picker.Item label="Sélectionnez une catégorie" value="" />
           {CATEGORIES.map((cat) => (
             <Picker.Item key={cat} label={cat} value={cat} />
@@ -266,10 +289,13 @@ export default function NewAd({ navigation }) {
         </Picker>
       </View>
 
-      {/* Picker Lieu */}
       <View style={styles.pickerContainer}>
         <Text style={styles.label}>Lieu *</Text>
-        <Picker selectedValue={lieu} onValueChange={(itemValue) => setLieu(itemValue)} style={styles.picker}>
+        <Picker
+          selectedValue={lieu}
+          onValueChange={(itemValue) => setLieu(itemValue)}
+          style={styles.picker}
+        >
           <Picker.Item label="Sélectionnez un lieu" value="" />
           {LIEUX.map((l) => (
             <Picker.Item key={l} label={l} value={l} />
@@ -277,25 +303,49 @@ export default function NewAd({ navigation }) {
         </Picker>
       </View>
 
-      {/* Si "Autre" sélectionné pour le lieu */}
-      {lieu === "Autre" && <TextInput style={styles.input} placeholder="Précisez le lieu *" value={lieuAutre} onChangeText={setLieuAutre} />}
+      {lieu === "Autre" && (
+        <TextInput
+          style={styles.input}
+          placeholder="Précisez le lieu *"
+          value={lieuAutre}
+          onChangeText={setLieuAutre}
+        />
+      )}
 
-      {/* DatePicker pour la date */}
       <View style={styles.datePickerContainer}>
         <Text style={styles.label}>Date de l'événement *</Text>
-        <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.dateButtonText}>{dayjs(date).format("dddd D MMMM YYYY")}</Text>
+        <TouchableOpacity 
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateButtonText}>
+            {dayjs(date).format("dddd D MMMM YYYY")}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {showDatePicker && <DateTimePicker value={date} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"} onChange={onDateChange} locale="fr-FR" minimumDate={new Date()} />}
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={onDateChange}
+          locale="fr-FR"
+          minimumDate={new Date()}
+        />
+      )}
 
-      {showDatePicker && Platform.OS === "ios" && <Button title="✓ Confirmer" onPress={() => setShowDatePicker(false)} />}
+      {showDatePicker && Platform.OS === "ios" && (
+        <Button title="✓ Confirmer" onPress={() => setShowDatePicker(false)} />
+      )}
 
-      {/* Picker Horaire */}
       <View style={styles.pickerContainer}>
         <Text style={styles.label}>Horaire</Text>
-        <Picker selectedValue={horaire} onValueChange={(itemValue) => setHoraire(itemValue)} style={styles.picker}>
+        <Picker
+          selectedValue={horaire}
+          onValueChange={(itemValue) => setHoraire(itemValue)}
+          style={styles.picker}
+        >
           <Picker.Item label="Sélectionnez un horaire" value="" />
           {HORAIRES.map((h) => (
             <Picker.Item key={h} label={h} value={h} />
@@ -303,22 +353,58 @@ export default function NewAd({ navigation }) {
         </Picker>
       </View>
 
-      {/* Si "Personnalisé" sélectionné pour l'horaire */}
-      {horaire === "Personnalisé" && <TextInput style={styles.input} placeholder="Horaire personnalisé (ex: 18:00 - 22:00)" value={horairePersonnalise} onChangeText={setHorairePersonnalise} />}
+      {horaire === "Personnalisé" && (
+        <TextInput
+          style={styles.input}
+          placeholder="Horaire personnalisé (ex: 18:00 - 22:00)"
+          value={horairePersonnalise}
+          onChangeText={setHorairePersonnalise}
+        />
+      )}
 
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Tarif de l'événement</Text>
-        <View style={styles.priceInputContainer}>
-          <TextInput style={styles.priceInput} placeholder="0" value={tarif} onChangeText={setTarif} keyboardType="numeric" />
-          <Text style={styles.currencyLabel}>€</Text>
-        </View>
         <Text style={styles.helperText}>Laissez vide ou mettez 0 pour "Gratuit"</Text>
+        <View style={styles.priceInputContainer}>
+          <TextInput
+            style={styles.priceInput}
+            placeholder="0"
+            value={tarif}
+            onChangeText={setTarif}
+            keyboardType="numeric"
+          />
+          
+          <Text style={styles.currencyLabel}>€</Text>
+          
+        </View>
+      
       </View>
 
-      <TextInput style={styles.input} placeholder="Lien billetterie" value={lien} onChangeText={setLien} />
+      <View style={styles.inputContainer}>
+  <Text style={styles.label}>Contact annonceur</Text>
+  <Text style={styles.helperText}>Email ou téléphone pour vous contacter</Text>
+  <TextInput
+    style={styles.input}
+    placeholder={auth.currentUser?.email || "Email ou téléphone"}
+    value={contact}
+    onChangeText={setContact}
+    keyboardType="email-address"
+  />
+
+</View>
+
+      <TextInput 
+        style={styles.input} 
+        placeholder="Lien billetterie (optionnel)" 
+        value={lien} 
+        onChangeText={setLien} 
+      />
 
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : null}
       <Button title={imageUri ? "Changer l'image" : "Choisir une image"} onPress={pickImage} />
+
+    
+
       <View style={{ height: 12 }} />
       <Button title={sending ? "Envoi..." : "Envoyer l'annonce"} onPress={onSubmit} disabled={sending} />
     </ScrollView>
@@ -326,93 +412,19 @@ export default function NewAd({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  h1: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: "#fff",
-  },
-  pickerContainer: {
-    marginBottom: 10,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 6,
-    color: "#333",
-  },
-  picker: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  datePickerContainer: {
-    marginBottom: 10,
-  },
-  dateButton: {
-    borderWidth: 1,
-    borderColor: "#007AFF",
-    borderRadius: 8,
-    padding: 14,
-    backgroundColor: "#F0F8FF",
-    alignItems: "center",
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: "#007AFF",
-    fontWeight: "600",
-  },
-  preview: {
-    width: "100%",
-    height: 180,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  legalNotice: {
-    fontSize: 12,
-    color: "#666",
-    marginVertical: 12,
-    padding: 10,
-    backgroundColor: "#FFF3CD",
-    borderRadius: 8,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  inputContainer: {
-    marginBottom: 10,
-  },
-  priceInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-    paddingRight: 12,
-  },
-  priceInput: {
-    flex: 1,
-    padding: 10,
-    fontSize: 16,
-  },
-  currencyLabel: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#666",
-  },
-  helperText: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-    fontStyle: "italic",
-  },
+  h1: { fontSize: 22, fontWeight: "bold", marginBottom: 12, textAlign: "center" },
+  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginBottom: 10, backgroundColor: "#fff" },
+  pickerContainer: { marginBottom: 10 },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: "#333" },
+  picker: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff" },
+  datePickerContainer: { marginBottom: 10 },
+  dateButton: { borderWidth: 1, borderColor: "#007AFF", borderRadius: 8, padding: 14, backgroundColor: "#F0F8FF", alignItems: "center" },
+  dateButtonText: { fontSize: 16, color: "#007AFF", fontWeight: "600" },
+  inputContainer: { marginBottom: 10 },
+  priceInputContainer: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff", paddingRight: 12 },
+  priceInput: { flex: 1, padding: 10, fontSize: 16 },
+  currencyLabel: { fontSize: 18, fontWeight: "bold", color: "#666" },
+  helperText: { fontSize: 12, color: "#666", marginTop: 4, fontStyle: "italic" },
+  preview: { width: "100%", height: 180, borderRadius: 10, marginBottom: 10 },
+  legalNotice: { fontSize: 12, color: "#666", marginVertical: 12, padding: 10, backgroundColor: "#FFF3CD", borderRadius: 8, textAlign: "center", lineHeight: 18 },
 });
