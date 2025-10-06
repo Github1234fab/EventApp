@@ -15,13 +15,14 @@ import NewAd from "./components/NewAd";
 import MyAds from "./components/MyAds";
 import Favorites from "./components/Favorites";
 import AdminModeration from "./components/AdminModeration";
-import EditAd from "./components/EditAd"; // 👈 Import ajouté
+import EditAd from "./components/EditAd"; // Admin uniquement
+import MyPayments from "./components/PaymentSuccess"; // 👈 Ajout
 
 const Stack = createStackNavigator();
 
 // 👈 Liste des UIDs admins - remplacez par vos vrais UIDs Firebase
 export const ADMIN_UIDS = [
-  "EcREZkUCnFhJ3fDwl3TL6MdKelF3", // 👈 Mettez votre UID ici
+  "VOTRE_UID_FIREBASE_ICI", // 👈 Mettez votre UID ici
   // "autre_uid_admin",
 ];
 
@@ -59,6 +60,7 @@ export default function App() {
             <Stack.Screen name="PayAd" component={PayAd} options={{ title: "Payer votre annonce" }} />
             <Stack.Screen name="AdminModeration" component={AdminModeration} options={{ title: "🛡️ Modération" }} />
             <Stack.Screen name="EditAd" component={EditAd} options={{ title: "✏️ Modifier l'annonce" }} />
+            <Stack.Screen name="MyPayments" component={MyPayments} options={{ title: "💳 Paiements" }} />
           </>
         ) : (
           <>
