@@ -340,7 +340,7 @@ function PaymentPill({ paid }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9" },
+  container: { flex: 1, backgroundColor: "transaprent" },
   loader: {
     flex: 1,
     alignItems: "center",

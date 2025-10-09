@@ -18,7 +18,6 @@
       "bundleIdentifier": "com.anonymous.mon-projet"
     },
     "android": {
-        
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -33,6 +32,9 @@
       "eas": {
         "projectId": "70858a8a-053a-437a-9559-576d609b3be3"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
