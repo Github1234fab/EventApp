@@ -973,23 +973,19 @@ export default function EventDetail({ route, navigation }) {
   // Fonction pour ouvrir Google Maps avec l'adresse
   const openMaps = () => {
     if (!event.lieu) return;
-    
     const address = encodeURIComponent(event.lieu);
-    const url = Platform.OS === 'ios' 
-      ? `maps://maps.apple.com/?q=${address}`
-      : `https://www.google.com/maps/search/?api=1&query=${address}`;
-    
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        Alert.alert("Erreur", "Impossible d'ouvrir les cartes");
-      }
-    }).catch(() => {
+    let url;
+    if (Platform.OS === 'ios') {
+      url = `http://maps.apple.com/?q=${address}`; // ou maps:// si tu veux forcer Apple Maps
+    } else {
+      url = `geo:0,0?q=${address}`;
+    }
+    Linking.openURL(url).catch(() => {
       Alert.alert("Erreur", "Impossible d'ouvrir les cartes");
     });
   };
 
+  
   // Fonction pour ouvrir un lien externe
   const openLink = (url, errorMessage) => {
     if (!url) return;

@@ -960,29 +960,34 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  
-  menuItemClose: { 
+
+  menuItemClose: {
     borderBottomWidth: 0,
     backgroundColor: COLORS.lightBg,
     borderRadius: 8,
     marginTop: 8,
   },
-  
+
   // Container rond pour la croix
   crossContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 50,
     backgroundColor: COLORS.danger, // Rouge
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    
   },
-  
+
   menuIconCross: {
     fontSize: 16,
-    color: COLORS.ctaText, // Blanc
-    fontWeight: 'bold',
-  
+    color: COLORS.ctaText,
+    fontFamily: FONTS.bold,
+   
+  },
+  menuIcon: {
+    marginRight: 12,
+    fontSize: 20,
   },
 });

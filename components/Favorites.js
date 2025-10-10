@@ -78,9 +78,9 @@ export default function Favorites({ navigation }) {
         <>
           <View style={styles.header}>
             <View style={styles.headerContent}>
-              <Ionicons name="heart" size={24} color="#e74c3c" style={{ marginRight: 8 }} />
+              {/* <Ionicons name="heart" size={24} color="#e74c3c" style={{ marginRight: 8 }} /> */}
               <View>
-                <Text style={styles.headerTitle}>Mes favoris</Text>
+                {/* <Text style={styles.headerTitle}>Mes favoris</Text> */}
                 <Text style={styles.headerSubtitle}>
                   {favorites.length} événement{favorites.length > 1 ? "s" : ""} sauvegardé{favorites.length > 1 ? "s" : ""}
                 </Text>

@@ -240,11 +240,11 @@ function LogoHeaderRight() {
     <Image
       source={logoPoilu}
       style={{
-        width: 80, // ajuste selon ton logo
+        width: 90, // ajuste selon ton logo
         height: 100,
         resizeMode: "contain",
         marginRight: 0,
-        marginBottom: 10,
+        marginBottom: 20,
       }}
     />
   );
