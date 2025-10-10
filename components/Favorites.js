@@ -1,66 +1,55 @@
 // components/Favorites.js
-import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
-import { auth, db } from "./Firebase";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Card from "./Card";
+import { COLORS, FONTS } from '../Config';
 
 export default function Favorites({ navigation }) {
-  const uid = auth.currentUser?.uid;
-  const [items, setItems] = useState(null);
+  const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Charger les favoris au montage et lors du focus
   useEffect(() => {
-    if (!uid) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
+    loadFavorites();
 
-    const q = query(
-      collection(db, "Users", uid, "favorites"),
-      orderBy("createdAt", "desc")
-    );
+    // Écouter le focus de l'écran pour recharger les favoris
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadFavorites();
+    });
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const data = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
+    return unsubscribe;
+  }, [navigation]);
 
-        // Recomposer les objets "event" complets pour Card
-        const events = data.map((f) => ({
-          id: f.eventId || f.id,
-          titre: f.titre || "Sans titre",
-          description: f.description || "",
-          image: f.image || "",
-          date: f.date || "",
-          horaire: f.horaire || "",
-          lieu: f.lieu || "",
-          tarif: f.tarif || "",
-          catégorie: f.catégorie || "",
-          lien: f.lien || "",
-        }));
-
-        setItems(events);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("[Favorites] error:", error);
-        setItems([]);
-        setLoading(false);
+  const loadFavorites = async () => {
+    try {
+      const favoritesData = await AsyncStorage.getItem('favorites');
+      if (favoritesData) {
+        const favArray = JSON.parse(favoritesData);
+        setFavorites(favArray);
+      } else {
+        setFavorites([]);
       }
-    );
+    } catch (error) {
+      console.error('Erreur chargement favoris:', error);
+      setFavorites([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return () => unsub();
-  }, [uid]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadFavorites();
+    setRefreshing(false);
+  }, []);
 
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#e0245e" />
+        <Ionicons name="heart-outline" size={64} color={COLORS.cta} style={{ marginBottom: 16 }} />
         <Text style={styles.loaderText}>Chargement de vos favoris...</Text>
       </View>
     );
@@ -68,37 +57,51 @@ export default function Favorites({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {items.length === 0 ? (
+      {favorites.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>💔</Text>
+          <Ionicons name="heart-dislike-outline" size={80} color={COLORS.textGray} style={{ marginBottom: 16 }} />
           <Text style={styles.emptyTitle}>Aucun favori</Text>
           <Text style={styles.emptyText}>
-            Tapez sur le cœur d'un événement pour l'ajouter à vos favoris.
+            Tapez sur le cœur ❤️ d'un événement pour l'ajouter à vos favoris.
           </Text>
           <TouchableOpacity
             style={styles.exploreButton}
             onPress={() => navigation.navigate("EventsList")}
           >
+            <Ionicons name="search" size={20} color={COLORS.ctaText} style={{ marginRight: 8 }} />
             <Text style={styles.exploreButtonText}>
-              🔍 Explorer les événements
+              Explorer les événements
             </Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>❤️ Mes favoris</Text>
-            <Text style={styles.headerSubtitle}>
-              {items.length} événement{items.length > 1 ? "s" : ""} sauvegardé{items.length > 1 ? "s" : ""}
-            </Text>
+            <View style={styles.headerContent}>
+              <Ionicons name="heart" size={24} color="#e74c3c" style={{ marginRight: 8 }} />
+              <View>
+                <Text style={styles.headerTitle}>Mes favoris</Text>
+                <Text style={styles.headerSubtitle}>
+                  {favorites.length} événement{favorites.length > 1 ? "s" : ""} sauvegardé{favorites.length > 1 ? "s" : ""}
+                </Text>
+              </View>
+            </View>
           </View>
           <FlatList
-            data={items}
-            keyExtractor={(it) => String(it.id)}
+            data={favorites}
+            keyExtractor={(item, index) => item.id?.toString() || index.toString()}
             renderItem={({ item }) => (
               <Card event={item} navigation={navigation} />
             )}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[COLORS.cta]}
+                tintColor={COLORS.cta}
+              />
+            }
           />
         </>
       )}
@@ -109,33 +112,40 @@ export default function Favorites({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: COLORS.background,
   },
   loader: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: COLORS.background,
   },
   loaderText: {
     marginTop: 8,
-    color: "#666",
+    color: COLORS.textGray,
     fontSize: 14,
+    fontFamily: FONTS.regular,
   },
   header: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.lightBg,
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: COLORS.border,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontFamily: FONTS.bold,
+    color: COLORS.textDark,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#666",
+    fontFamily: FONTS.regular,
+    color: COLORS.textGray,
   },
   empty: {
     flex: 1,
@@ -143,32 +153,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: FONTS.bold,
     marginBottom: 8,
-    color: "#333",
+    color: COLORS.textDark,
   },
   emptyText: {
-    color: "#666",
+    color: COLORS.textGray,
+    fontFamily: FONTS.regular,
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
     fontSize: 15,
   },
   exploreButton: {
-    backgroundColor: "#e0245e",
+    backgroundColor: COLORS.cta,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   exploreButtonText: {
-    color: "#fff",
+    color: COLORS.ctaText,
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: FONTS.semiBold,
+  },
+  listContent: {
+    paddingBottom: 24,
   },
 });

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Image, Alert, ScrollView, Linking, TouchableOpacity, Platform } from "react-native";
+import { View, Text, TextInput, StyleSheet, Image, Alert, ScrollView, Linking, TouchableOpacity, Platform } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { auth, db, storage } from "./Firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { COLORS, FONTS } from "../Config";
 import dayjs from "dayjs";
 import "dayjs/locale/fr";
 dayjs.locale("fr");
@@ -14,53 +15,7 @@ dayjs.locale("fr");
 const CATEGORIES = ["Animation", "Atelier", "Autre", "Brocante", "Café Philo", "Cinéma", "Conférence", "Concert", "Danse", "Exposition", "Festival", "Lecture", "Marché", "Restaurant", "Soirée", "Sport", "Théâtre"];
 
 const LIEUX = [
-  "Aveize",
-  "Brignais",
-  "Brindas",
-  "Brussieu",
-  "Bessenay",
-  "Chaponost",
-  "Chazelles-sur-Lyon",
-  "Chaussan",
-  "Chevinay",
-  "Coise",
-  "Craponne",
-  "Courzieu",
-  "Duerne",
-  "Francheville",
-  "Grézieu-la-Varenne",
-  "Grézieu-le-Marché",
-  "L'Arbresle",
-  "Larajasse",
-  "Lentilly",
-  "Messimy",
-  "Mornant",
-  "Montromant",
-  "Orliénas",
-  "Pollionnay",
-  "Pomeys",
-  "Riverie",
-  "Rontalon",
-  "Saint-Bel",
-  "Saint-Didier-sous-Riverie",
-  "Saint-Genis-les-Ollières",
-  "Saint-Laurent-d'Agny",
-  "Saint-Laurent-de-Chamousset",
-  "Saint-Martin-en-Haut",
-  "Saint-Pierre-la-Palud",
-  "Saint-Symphorien-sur-Coise",
-  "Sainte-Catherine",
-  "Sainte-Consorce",
-  "Sainte-Foy-l'Argentière",
-  "Sainte-Foy-lès-Lyon",
-  "Soucieu-en-Jarrest",
-  "Sourcieux-les-Mines",
-  "Taluyers",
-  "Thurins",
-  "Vaugneray",
-  "Vourles",
-  "Yzeron",
-  "autres",
+  "Aveize", "Brignais", "Brindas", "Brussieu", "Bessenay", "Chaponost", "Chazelles-sur-Lyon", "Chaussan", "Chevinay", "Coise", "Craponne", "Courzieu", "Duerne", "Francheville", "Grézieu-la-Varenne", "Grézieu-le-Marché", "L'Arbresle", "Larajasse", "Lentilly", "Messimy", "Mornant", "Montromant", "Orliénas", "Pollionnay", "Pomeys", "Riverie", "Rontalon", "Saint-Bel", "Saint-Didier-sous-Riverie", "Saint-Genis-les-Ollières", "Saint-Laurent-d'Agny", "Saint-Laurent-de-Chamousset", "Saint-Martin-en-Haut", "Saint-Pierre-la-Palud", "Saint-Symphorien-sur-Coise", "Sainte-Catherine", "Sainte-Consorce", "Sainte-Foy-l'Argentière", "Sainte-Foy-lès-Lyon", "Soucieu-en-Jarrest", "Sourcieux-les-Mines", "Taluyers", "Thurins", "Vaugneray", "Vourles", "Yzeron", "Autre",
 ];
 
 const HORAIRES = ["Toute la journée", "08h00 - 12h00", "09h00 - 18h00", "10h00 - 19h00", "14h00 - 18h00", "18h00 - 22h00", "19h00 - 23h00", "20h00 - 00h00", "Personnalisé"];
@@ -95,7 +50,8 @@ export default function NewAd({ navigation }) {
   const [tarif, setTarif] = useState("");
   const [categorie, setCategorie] = useState("");
   const [contact, setContact] = useState("");
-  const [lien, setLien] = useState("");
+  const [lien, setLien] = useState("https://");
+  const [lienAnnonceur, setLienAnnonceur] = useState("https://www."); // 👈 Pré-rempli
 
   const [imageUri, setImageUri] = useState(null);
   const [imageMeta, setImageMeta] = useState(null);
@@ -230,7 +186,8 @@ export default function NewAd({ navigation }) {
         tarif: tarifFinal,
         catégorie: categorie,
         contact: contact || user.email,
-        lien,
+        lienBilletterie: lien && lien !== "https://" ? lien : "", // 👈 Envoyer vide si non rempli
+        lienAnnonceur: lienAnnonceur && lienAnnonceur !== "https://www." ? lienAnnonceur : "", // 👈 Envoyer vide si non rempli
         image: imageURL,
         status: "pending",
         paid: false,
@@ -251,7 +208,7 @@ export default function NewAd({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
-      <Text style={styles.h1}>Nouvelle annonce</Text>
+      <Text style={styles.h1}>Nouvelle Annonce</Text>
 
       <Text style={styles.legalNotice}>
         <Text style={{ fontWeight: "bold" }}>Important :</Text> Vérifiez bien toutes vos informations avant de payer. 
@@ -264,7 +221,8 @@ export default function NewAd({ navigation }) {
         style={styles.input} 
         placeholder="Titre *" 
         value={titre} 
-        onChangeText={setTitre} 
+        onChangeText={setTitre}
+        placeholderTextColor={COLORS.textGray}
       />
       
       <TextInput 
@@ -272,7 +230,8 @@ export default function NewAd({ navigation }) {
         placeholder="Description" 
         value={description} 
         onChangeText={setDescription} 
-        multiline 
+        multiline
+        placeholderTextColor={COLORS.textGray}
       />
 
       <View style={styles.pickerContainer}>
@@ -309,6 +268,7 @@ export default function NewAd({ navigation }) {
           placeholder="Précisez le lieu *"
           value={lieuAutre}
           onChangeText={setLieuAutre}
+          placeholderTextColor={COLORS.textGray}
         />
       )}
 
@@ -336,7 +296,9 @@ export default function NewAd({ navigation }) {
       )}
 
       {showDatePicker && Platform.OS === "ios" && (
-        <Button title="✓ Confirmer" onPress={() => setShowDatePicker(false)} />
+        <TouchableOpacity style={styles.buttons} onPress={() => setShowDatePicker(false)}>
+          <Text style={styles.buttonText}>✓ Confirmer</Text>
+        </TouchableOpacity>
       )}
 
       <View style={styles.pickerContainer}>
@@ -359,6 +321,7 @@ export default function NewAd({ navigation }) {
           placeholder="Horaire personnalisé (ex: 18:00 - 22:00)"
           value={horairePersonnalise}
           onChangeText={setHorairePersonnalise}
+          placeholderTextColor={COLORS.textGray}
         />
       )}
 
@@ -372,59 +335,244 @@ export default function NewAd({ navigation }) {
             value={tarif}
             onChangeText={setTarif}
             keyboardType="numeric"
+            placeholderTextColor={COLORS.textGray}
           />
-          
           <Text style={styles.currencyLabel}>€</Text>
-          
         </View>
-      
       </View>
 
       <View style={styles.inputContainer}>
-  <Text style={styles.label}>Contact annonceur</Text>
-  <Text style={styles.helperText}>Email ou téléphone pour vous contacter</Text>
-  <TextInput
-    style={styles.input}
-    placeholder={auth.currentUser?.email || "Email ou téléphone"}
-    value={contact}
-    onChangeText={setContact}
-    keyboardType="email-address"
-  />
+        <Text style={styles.label}>Contact annonceur</Text>
+        <Text style={styles.helperText}>Email ou téléphone pour vous contacter</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={auth.currentUser?.email || "Email ou téléphone"}
+          value={contact}
+          onChangeText={setContact}
+          keyboardType="email-address"
+          placeholderTextColor={COLORS.textGray}
+        />
+      </View>
 
-</View>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Lien billetterie (optionnel)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://exemple-billetterie.com"
+          value={lien}
+          onChangeText={(text) => {
+            // Empêche de supprimer "https://"
+            if (text.startsWith("https://")) {
+              setLien(text);
+            } else if (text.length === 0) {
+              setLien("https://");
+            }
+          }}
+          onFocus={() => {
+            // Place le curseur après "https://" au focus
+            if (lien === "https://") {
+              // Le curseur sera à la fin automatiquement
+            }
+          }}
+          keyboardType="url"
+          autoCapitalize="none"
+          placeholderTextColor={COLORS.textGray}
+        />
+        <Text style={styles.helperText}>
+          Ex: https://fnacspectacles.com ou https://ticketmaster.fr
+        </Text>
+      </View>
 
-      <TextInput 
-        style={styles.input} 
-        placeholder="Lien billetterie (optionnel)" 
-        value={lien} 
-        onChangeText={setLien} 
-      />
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Site web de l'annonceur (optionnel)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://www.mon-site.com"
+          value={lienAnnonceur}
+          onChangeText={(text) => {
+            // Empêche de supprimer "https://www."
+            if (text.startsWith("https://www.")) {
+              setLienAnnonceur(text);
+            } else if (text.length === 0) {
+              setLienAnnonceur("https://www.");
+            }
+          }}
+          onFocus={() => {
+            // Place le curseur après "https://www." au focus
+            if (lienAnnonceur === "https://www.") {
+              // Le curseur sera à la fin automatiquement
+            }
+          }}
+          keyboardType="url"
+          autoCapitalize="none"
+          placeholderTextColor={COLORS.textGray}
+        />
+        <Text style={styles.helperText}>
+          Ex: https://www.facebook.com/monepage ou https://www.mon-site.fr
+        </Text>
+      </View>
 
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : null}
-      <Button title={imageUri ? "Changer l'image" : "Choisir une image"} onPress={pickImage} />
 
-    
+      <TouchableOpacity 
+        style={styles.buttons} 
+        onPress={pickImage}
+      >
+        <Text style={styles.buttonText}>
+          {imageUri ? "Changer l'image" : "Choisir une image"}
+        </Text>
+      </TouchableOpacity>
 
       <View style={{ height: 12 }} />
-      <Button title={sending ? "Envoi..." : "Envoyer l'annonce"} onPress={onSubmit} disabled={sending} />
+
+      <TouchableOpacity 
+        style={[styles.buttons, sending && styles.buttonDisabled]} 
+        onPress={onSubmit}
+        disabled={sending}
+      >
+        <Text style={styles.buttonText}>
+          {sending ? "Envoi..." : "Envoyer l'annonce"}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  h1: { fontSize: 22, fontWeight: "bold", marginBottom: 12, textAlign: "center" },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginBottom: 10, backgroundColor: "#fff" },
-  pickerContainer: { marginBottom: 10 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: "#333" },
-  picker: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff" },
-  datePickerContainer: { marginBottom: 10 },
-  dateButton: { borderWidth: 1, borderColor: "#007AFF", borderRadius: 8, padding: 14, backgroundColor: "#F0F8FF", alignItems: "center" },
-  dateButtonText: { fontSize: 16, color: "#007AFF", fontWeight: "600" },
-  inputContainer: { marginBottom: 10 },
-  priceInputContainer: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff", paddingRight: 12 },
-  priceInput: { flex: 1, padding: 10, fontSize: 16 },
-  currencyLabel: { fontSize: 18, fontWeight: "bold", color: "#666" },
-  helperText: { fontSize: 12, color: "#666", marginTop: 4, fontStyle: "italic" },
-  preview: { width: "100%", height: 180, borderRadius: 10, marginBottom: 10 },
-  legalNotice: { fontSize: 12, color: "#666", marginVertical: 12, padding: 10, backgroundColor: "#FFF3CD", borderRadius: 8, textAlign: "center", lineHeight: 18 },
+  h1: { 
+    fontSize: 22, 
+    fontFamily: FONTS.bold,
+    marginBottom: 12, 
+    textAlign: "center",
+    color: COLORS.text,
+  },
+  
+  input: { 
+    borderWidth: 1, 
+    borderColor: COLORS.border, 
+    borderRadius: 8, 
+    padding: 10, 
+    marginBottom: 10, 
+    backgroundColor: COLORS.background,
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    color: COLORS.textDark,
+  },
+  
+  pickerContainer: { 
+    marginBottom: 10 
+  },
+  
+  label: { 
+    fontSize: 14, 
+    fontFamily: FONTS.semiBold,
+    marginBottom: 6, 
+    color: COLORS.text,
+  },
+  
+  picker: { 
+    borderWidth: 1, 
+    borderColor: COLORS.border, 
+    borderRadius: 8, 
+    backgroundColor: COLORS.background,
+    fontFamily: FONTS.regular,
+  },
+  
+  datePickerContainer: { 
+    marginBottom: 10 
+  },
+  
+  dateButton: { 
+    borderWidth: 1, 
+    borderColor: COLORS.cta,
+    borderRadius: 8, 
+    padding: 14, 
+    backgroundColor: COLORS.lightBg,
+    alignItems: "center" 
+  },
+  
+  dateButtonText: { 
+    fontSize: 16, 
+    color: COLORS.cta,
+    fontFamily: FONTS.semiBold,
+  },
+  
+  inputContainer: { 
+    marginBottom: 10 
+  },
+  
+  priceInputContainer: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    borderWidth: 1, 
+    borderColor: COLORS.border, 
+    borderRadius: 8, 
+    backgroundColor: COLORS.background, 
+    paddingRight: 12 
+  },
+  
+  priceInput: { 
+    flex: 1, 
+    padding: 10, 
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+    color: COLORS.textDark,
+  },
+  
+  currencyLabel: { 
+    fontSize: 18, 
+    fontFamily: FONTS.bold,
+    color: COLORS.textGray,
+  },
+  
+  helperText: { 
+    fontSize: 12, 
+    color: COLORS.textGray, 
+    marginTop: 4, 
+    fontFamily: FONTS.regular,
+    fontStyle: "italic" 
+  },
+  
+  preview: { 
+    width: "100%", 
+    height: 180, 
+    borderRadius: 10, 
+    marginBottom: 10 
+  },
+  
+  legalNotice: { 
+    fontSize: 12, 
+    color: COLORS.ctaText, 
+    marginVertical: 12, 
+    padding: 10, 
+    backgroundColor: COLORS.ctaSecondary,
+    borderRadius: 8, 
+    textAlign: "center", 
+    lineHeight: 18,
+    fontFamily: FONTS.regular,
+  },
+
+  buttons: {
+    backgroundColor: COLORS.cta,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  buttonText: {
+    color: COLORS.ctaText,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+  },
+
+  buttonDisabled: {
+    backgroundColor: COLORS.textGray,
+    opacity: 0.6,
+  },
 });

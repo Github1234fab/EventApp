@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "mon-projet",
+    "name": "POILU", 
     "slug": "mon-projet",
     "scheme": "monprojet",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Poilu_chair_Mobile_V2.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/Poilu_chair_Mobile_V2.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/Poilu_chair_Mobile_V2.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

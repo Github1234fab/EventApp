@@ -4,6 +4,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { auth, db } from "./Firebase";
 import { collection, query, where, orderBy, onSnapshot,  doc, getDoc } from "firebase/firestore";
 import dayjs from "dayjs";
+import { COLORS, FONTS } from "../Config";
 
 export default function MyPayments({ navigation }) {
   const [payments, setPayments] = useState([]);
@@ -132,14 +133,14 @@ export default function MyPayments({ navigation }) {
             style={styles.button}
             onPress={() => handleRequestReceipt(item)}
           >
-            <Text style={styles.buttonText}>📧 Reçu par email</Text>
+            <Text style={styles.buttonText}>Reçu par email</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
             onPress={() => navigation.navigate("EventDetail", { event: item })}
           >
-            <Text style={styles.secondaryButtonText}>👁️ Voir l'annonce</Text>
+            <Text style={styles.secondaryButtonText}>Voir l'annonce</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -176,7 +177,7 @@ export default function MyPayments({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💳 Mes paiements</Text>
+        <Text style={styles.headerTitle}>💳</Text>
         <Text style={styles.headerSubtitle}>
           {payments.length} paiement{payments.length > 1 ? "s" : ""} effectué{payments.length > 1 ? "s" : ""}
         </Text>
@@ -199,7 +200,7 @@ export default function MyPayments({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9" },
+  container: { flex: 1, backgroundColor: "transaprent" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f9f9f9" },
   loaderText: { marginTop: 8, color: "#666" },
   empty: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
@@ -226,10 +227,10 @@ const styles = StyleSheet.create({
   amount: { fontSize: 18, fontWeight: "bold", color: "#34C759" },
   transactionId: { fontSize: 11, color: "#666", fontFamily: "monospace", flex: 1, textAlign: "right" },
   actions: { flexDirection: "row", marginTop: 12, gap: 8 },
-  button: { flex: 1, backgroundColor: "#007AFF", paddingVertical: 10, borderRadius: 8, alignItems: "center" },
-  buttonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  secondaryButton: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#007AFF" },
-  secondaryButtonText: { color: "#007AFF", fontSize: 14, fontWeight: "600" },
+  button: { flex: 1, backgroundColor: COLORS.cta, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
+  buttonText: { color: "#fff", fontSize: 14, fontWeight: "600", backgroundColor: COLORS.cta },
+  secondaryButton: { backgroundColor: COLORS.ctaSecondary, borderWidth: 0, borderColor: "#007AFF" },
+  secondaryButtonText: { color: COLORS.ctaText, fontSize: 14, fontWeight: "600" },
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", padding: 16, borderTopWidth: 1, borderTopColor: "#e0e0e0" },
   supportButton: { backgroundColor: "#f0f0f0", paddingVertical: 12, borderRadius: 8, alignItems: "center" },
   supportButtonText: { color: "#666", fontSize: 14, fontWeight: "600" },
